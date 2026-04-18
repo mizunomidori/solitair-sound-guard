@@ -8,7 +8,7 @@
 # ///
 
 # Solitaire Sound Guard
-# Copyright (c) 2026 Wataru
+# Copyright (c) 2026 mizunomidori
 # Licensed under the MIT License.
 
 import sys
@@ -19,7 +19,7 @@ from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from pycaw.pycaw import AudioUtilities
 
-# --- ロジック部分: ミュート処理 ---
+# --- ミュート処理 ---
 def set_solitaire_mute(is_muted=True):
     try:
         sessions = AudioUtilities.GetAllSessions()
@@ -52,7 +52,7 @@ class MonitorThread(QThread):
     def stop(self):
         self.running = False
 
-# --- メインGUI ---
+# --- GUI ---
 class ModernMuter(QMainWindow):
     def __init__(self):
         super().__init__()
