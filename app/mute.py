@@ -7,14 +7,19 @@
 # ]
 # ///
 
+# Solitaire Sound Guard
+# Copyright (c) 2026 Wataru
+# Licensed under the MIT License.
+
 import sys
 import time
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                                QPushButton, QLabel)
+                             QPushButton, QLabel, QSystemTrayIcon, QMenu, QStyle)
+from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from pycaw.pycaw import AudioUtilities
 
-# --- ミュート処理 ---
+# --- ロジック部分: ミュート処理 ---
 def set_solitaire_mute(is_muted=True):
     try:
         sessions = AudioUtilities.GetAllSessions()
@@ -47,15 +52,15 @@ class MonitorThread(QThread):
     def stop(self):
         self.running = False
 
-# --- GUI ---
+# --- メインGUI ---
 class ModernMuter(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Solitaire Muter (uv mode)")
+        self.setWindowTitle("Solitaire Sound Guard")
         self.setFixedSize(400, 300)
         self.monitor_thread = None
 
-        # スタイルシート (フラットデザイン)
+        # スタイルシート
         self.setStyleSheet("""
             QMainWindow { background-color: #1a1b26; }
             QLabel { color: #a9b1d6; font-size: 14px; font-family: 'Segoe UI', sans-serif; }
@@ -102,6 +107,48 @@ class ModernMuter(QMainWindow):
         self.auto_btn.clicked.connect(self.toggle_auto_mode)
         layout.addWidget(self.auto_btn)
 
+        # --- システムトレイの設定 ---
+        self.tray_icon = QSystemTrayIcon(self)
+        # OS標準のアイコンをセット
+        self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+        
+        # トレイアイコンの右クリックメニュー
+        tray_menu = QMenu()
+        show_action = QAction("表示", self)
+        show_action.triggered.connect(self.show_window)
+        quit_action = QAction("終了", self)
+        quit_action.triggered.connect(QApplication.instance().quit)
+        
+        tray_menu.addAction(show_action)
+        tray_menu.addSeparator()
+        tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(tray_menu)
+        
+        # アイコンクリック時の動作
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        self.tray_icon.show()
+
+    def changeEvent(self, event):
+        # 最小化された時にタスクバーから隠す
+        if event.type() == event.Type.WindowStateChange:
+            if self.isMinimized():
+                self.hide()
+                self.tray_icon.showMessage(
+                    "Solitaire Sound Guard",
+                    "バックグラウンドで監視を継続しています",
+                    QSystemTrayIcon.Information,
+                    2000
+                )
+        super().changeEvent(event)
+
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.Trigger:  # シングルクリック
+            self.show_window()
+
+    def show_window(self):
+        self.showNormal()
+        self.activateWindow()
+
     def manual_mute(self):
         if set_solitaire_mute(True):
             self.status_label.setText("状態: ミュートを適用しました")
@@ -129,6 +176,9 @@ class ModernMuter(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    # 最後のウィンドウが閉じてもアプリを終了しない設定
+    app.setQuitOnLastWindowClosed(False)
+    
     window = ModernMuter()
     window.show()
     sys.exit(app.exec())
